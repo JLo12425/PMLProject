@@ -1,0 +1,63 @@
+---
+title: "Practical Machine Learning Project - Weight Lifting Exercise Data"
+author: "Jennifer Williams"
+date: "January 31, 2016"
+output: html_document
+---
+
+## Credits
+
+Credits to http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises and this paper about using parallel processing - https://github.com/lgreski/datasciencectacontent/blob/master/markdown/pml-randomForestPerformance.md, both were very helpful.
+
+## Preliminary Discussion
+
+I of course was procrastinating so if I had a lot of time, I would have run some different models using cross validation and maybe even stacked some models. I probably would have run a regular linear regression model first. After reviewing discussions though and the instructions, it appears as though a random forest is going to get you to the right results. And the random forest with k-fold cross validation is the way to go. I followed a similar procedure to greski's paper.
+
+I opened up the training and testing data in Excel first to see what the data looked like. In the testing data set, there were several columns with no data or NA's in the data. I just removed all of these columns in both the training and testing data sets.
+
+## Load Data & Libraries & Set Seeds and Prerequisites
+```{r}
+trainingimport <- read.csv("pml-training.csv")
+traininguse <- trainingimport[,c(8:11,37:49,60:68,84:86,102,113:124,140,151:160)]
+
+testingimport <- read.csv("pml-testing.csv")
+testinguse <- testingimport[,c(8:11,37:49,60:68,84:86,102,113:124,140,151:159)]
+library(caret)
+library(randomForest)
+set.seed(1000)
+y <- traininguse[,53]
+x <- traininguse[,-53]
+```
+
+## Step 1 Configure Parallel Processing
+
+```{r}
+library(parallel)
+library(doParallel)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+```
+
+## Step 2 Configure trainControl object
+
+```{r}
+fitControl <- trainControl(method = "cv", number = 10, allowParallel = TRUE)
+```
+
+## Step 3 Develop Training Model & de-register processing cluster
+
+```{r}
+fit <- train(x,y, method="rf",data=traininguse,trControl = fitControl)
+stopCluster(cluster)
+predictions <- predict(fit,testinguse)
+fit$finalModel
+predictions
+```
+
+## Out of Sample Error Estimate
+
+The out of sample error estimate is 0.44% from the final model fit.
+
+## Prediction Quiz
+
+I got 20 out of 20 correct on the quiz so I guess the model is working correctly!
